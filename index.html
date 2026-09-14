@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Discovery">
+<meta name="apple-mobile-web-app-title" content="Hindsight">
 <meta name="theme-color" content="#13233A">
-<title>Discovery Capture</title>
+<title>Hindsight</title>
 <style>
 :root{
   --ink:#13233A; --ink2:#24395C; --paper:#E9EDEA; --card:#FFFFFF; --line:#D6DCE0;
@@ -127,8 +127,15 @@ input:focus,textarea:focus{outline:none;border-color:var(--ink2);box-shadow:0 0 
 .rec-btn.on{background:var(--risk);border-color:var(--risk);color:#fff}
 .rec-btn.on .dot{background:#fff;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
 #debriefText{min-height:180px}
 .stepno{display:flex;gap:10px;align-items:baseline;font-size:17px;font-weight:650;margin:28px 0 10px}
+.out{border:1.5px solid var(--line);border-radius:var(--r);background:#FBFCFB;padding:14px;margin-top:12px;max-height:340px;overflow:auto;white-space:pre-wrap;font-size:13.5px;line-height:1.5}
+.out .bar{display:block;background:var(--ink);color:#fff;font-weight:650;padding:6px 10px;border-radius:6px;margin:14px 0 8px;font-size:12.5px}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.warn{background:var(--risk-soft);border:1px solid #F0C4BD;color:#7C2618;border-radius:var(--r);padding:12px;font-size:13.5px;margin-top:12px}
+.ok{background:var(--signal-soft);border:1px solid #F2DDB0;color:#6B4700;border-radius:var(--r);padding:12px;font-size:13.5px;margin-top:12px}
 .doc{border:1.5px solid var(--line);border-radius:var(--r);background:#FBFCFB;padding:16px;margin-top:12px;max-height:300px;overflow:auto}
 .doc h4{font-size:14px;margin:14px 0 4px}
 .doc h4:first-child{margin-top:0}
@@ -154,7 +161,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--ink2);box-shadow:0 0 
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><span class="app-name">Discovery Capture</span><span class="cust" id="custName"></span></div>
+    <div class="brand"><span class="app-name">Hindsight</span><span class="cust" id="custName"></span></div>
     <div class="steps" id="steps" hidden></div>
     <div class="step-meta" id="stepMeta" hidden></div>
   </header>
@@ -180,7 +187,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--ink2);box-shadow:0 0 
 // Discovery Capture: critical event management site discovery (prototype)
 // Questions live in the STEPS config below. Edit it to change the survey.
 // ============================================================================
-const APP_VERSION = '0.4 prototype';
+const APP_VERSION = '0.6 prototype';
 
 const STEPS = [
   { title:'Organization', intro:'Who the customer is and where they operate.', fields:[
@@ -216,11 +223,12 @@ const STEPS = [
   ]},
   { title:'Integrations', intro:'Systems the platform needs to connect to.', fields:[
     {id:'sso', label:'Identity provider for single sign-on', type:'radio', options:['Microsoft Entra ID','Okta','Ping','Other','Unknown']},
-    {id:'hrSync', label:'Sync the staff directory from HR?', type:'radio', options:['Yes','No','Unsure']},
+    {id:'hrSync', label:'Sync the staff directory from HR?', sub:'e.g. Workday', type:'radio', options:['Yes','No','Unsure']},
     {id:'massNotify', label:'Mass notification today', type:'text', placeholder:'Vendor and contract timing'},
     {id:'collab', label:'Collaboration tools', sub:'Select all that apply', type:'chips', options:['Microsoft Teams','Slack','Email','SMS']},
     {id:'gis', label:'GIS or mapping', type:'radio', options:['Esri ArcGIS','Other','None']},
-    {id:'otherSystems', label:'Other systems to connect', type:'textarea', placeholder:'e.g. ServiceNow, access control, video, EHR'}
+    {id:'itsm', label:'Service management and ticketing', type:'radio', options:['ServiceNow','Jira Service Management','Other','None']},
+    {id:'otherSystems', label:'Other systems to connect', type:'textarea', placeholder:'e.g. access control, video, CAD, EHR'}
   ]},
   { title:'Security and rollout', intro:'Hosting, compliance, and who owns it after go-live.', fields:[
     {id:'residency', label:'Where data must be hosted', type:'radio', options:['United States','Canada','European Union','United Kingdom','Australia','Multiple regions']},
@@ -229,6 +237,15 @@ const STEPS = [
     {id:'adminOwner', label:'Who owns the platform after go-live?', type:'text', placeholder:'Role and team size'},
     {id:'training', label:'Training needed for', sub:'Select all that apply', type:'chips', options:['Admins','Incident commanders','Responders','Executives','All staff']},
     {id:'rolloutNotes', label:'Rollout notes', type:'textarea', placeholder:'Phasing, procurement steps, budget timing'}
+  ]},
+  { title:'What they asked for', intro:'What the customer committed to in the room, in their words.', fields:[
+    {id:'asks', label:'What they asked us for next', sub:'Select all that apply', type:'chips', exclusive:'Nothing specific yet', options:['Another demo','Tailored demo','Budgetary pricing','Formal proposal','Pilot or trial','Security questionnaire','Reference calls','Nothing specific yet']},
+    {id:'askDetail', label:'In their words', type:'textarea', placeholder:'What exactly they want to see, and for whom', showIf:d=>(d.asks||[]).length>0 && !(d.asks||[]).includes('Nothing specific yet')},
+    {id:'decisionTiming', label:'Decision timeline', type:'radio', options:['This quarter','Next quarter','This fiscal year','No timeline given']},
+    {id:'procurement', label:'How they buy', type:'radio', options:['Direct purchase','Formal RFP','Existing contract vehicle','Not discussed']},
+    {id:'budgetOwner', label:'Who owns the budget', type:'text', placeholder:'Role and name if given'},
+    {id:'sponsor', label:'Executive sponsor', type:'text', placeholder:'Role and name if given'},
+    {id:'stakeholders', label:'Who else must be involved', type:'textarea', placeholder:'Roles that have to weigh in before a decision'}
   ]}
 ];
 
@@ -246,13 +263,18 @@ const SAMPLE = {
   incidentTypes:'Severe weather, IT and EHR downtime, utility failure, mass casualty surge, infant abduction (Code Pink), active threat',
   severity:'4 levels', plans:['Business continuity plans','Emergency operations plan','Checklists'], planFormat:'Paper binders',
   escalation:'Partially', afterAction:'Informal',
-  sso:'Microsoft Entra ID', hrSync:'Yes', massNotify:'Existing vendor, contract ends mid-2027',
+  sso:'Microsoft Entra ID', hrSync:'Yes', massNotify:'Existing vendor, contract ends mid-2027', itsm:'ServiceNow',
   collab:['Microsoft Teams','Email','SMS'], gis:'Esri ArcGIS',
   otherSystems:'EHR (read-only bed census during surge events), badge access control',
   residency:'United States', frameworks:['HICS','Joint Commission','CMS Emergency Preparedness','HIPAA'],
   securityReview:'Yes', adminOwner:'Emergency management coordinator (1 person)',
   training:['Admins','Incident commanders','Responders'],
-  rolloutNotes:'Wants the flagship hospital live first, then the 13 clinics. Budget approval cycle closes in Q1.'
+  rolloutNotes:'Wants the flagship hospital live first, then the 13 clinics. Budget approval cycle closes in Q1.',
+  asks:['Tailored demo','Budgetary pricing'],
+  askDetail:'Wants to see a mass casualty surge scenario run end to end for the COO and the emergency management committee, using their own incident types.',
+  decisionTiming:'Next quarter', procurement:'Direct purchase',
+  budgetOwner:'COO', sponsor:'COO (sponsoring after the accreditation finding)',
+  stakeholders:'CIO for the security review, emergency management coordinator, clinical operations director'
 };
 
 const SAMPLE_DEBRIEF = "Just left Lone Star Water and Power. They're a utility with 22 sites across three regions. The VP of Operations is sponsoring this, and it came out of the February ice storm, where outage coordination ran over email and a spreadsheet and nobody had one picture of what was going on. They run a corporate crisis team, but field crews use ICS. Around 400 field staff would report from phones, and a lot of their territory has no signal. They use Entra ID for sign-in, and Esri for mapping. They already have a mass notification vendor. Plans are mostly Word documents on a shared drive. They want to be live before next winter. Security review is required, and IT wants the questionnaire early.";
@@ -342,7 +364,7 @@ function photoIds(d){ return PHOTO_FIELDS.flatMap(f => (d[f] || []).map(p => p.i
 // ---------------------------------------------------------------------------
 function getCaps(){ return sget(KEY) || []; }
 function saveNow(){
-  if (!currentId || screen === 'home') return;
+  if (!currentId || screen === 'home' || screen === 'settings') return;
   let caps = getCaps().filter(c => c.id !== currentId);
   caps.push({ id: currentId, ts: Date.now(), screen, data });
   if (caps.length > 15) { caps.slice(0, caps.length - 15).forEach(c => photoIds(c.data).forEach(delPhoto)); caps = caps.slice(-15); }
@@ -445,10 +467,20 @@ const LEVEL_LABEL = { risk:'Risk', check:'Check', note:'Note' };
 function totalUsers(d){ return num(d.responders) + num(d.commanders) + num(d.executives) + num(d.admins); }
 function flags(d){
   const out = [], add = (level, text) => out.push({ level, text });
-  const sites = num(d.sites), admins = num(d.admins), fw = d.frameworks || [], users = totalUsers(d);
+  const sites = num(d.sites), admins = num(d.admins), fw = d.frameworks || [], users = totalUsers(d), mods = d.modules || [];
+  const asks = d.asks || [], realAsks = asks.filter(a => a !== 'Nothing specific yet');
+  const hasDemoAsk = realAsks.some(a => a.includes('demo'));
+  const hasPriceAsk = realAsks.some(a => a === 'Budgetary pricing' || a === 'Formal proposal');
+  if (hasDemoAsk && !d.sponsor) add('risk', 'A demo was requested with no executive sponsor named. Qualify before the prep work starts.');
+  if (hasPriceAsk && !mods.length) add('risk', 'Pricing was requested with no capabilities selected. Scope has to be agreed first.');
+  if (hasPriceAsk && !num(d.sites) && !users) add('risk', 'Pricing was requested with no site or user counts. The estimate would be guesswork.');
+  if (realAsks.length && d.decisionTiming === 'No timeline given') add('check', 'They asked for next steps but gave no decision timeline. Confirm what is driving the date.');
+  if (realAsks.length && !d.budgetOwner) add('check', 'No budget owner identified for the work they asked for.');
+  if (d.procurement === 'Formal RFP') add('check', 'Formal RFP process. Check for a communication blackout before contacting them directly.');
+  if (asks.includes('Nothing specific yet')) add('check', 'No specific next step agreed in the room. Propose one before the follow-up goes cold.');
   const unconfirmed = Object.keys(d._src || {}).length;
   if (unconfirmed) add('check', `${plural(unconfirmed,'answer')} came from the voice debrief and still ${unconfirmed === 1 ? 'needs' : 'need'} confirming.`);
-  if (!(d.modules || []).length) add('risk', 'No capabilities selected, so scope is undefined.');
+  if (!mods.length) add('risk', 'No capabilities selected, so scope is undefined.');
   if (sites >= 5 && admins < Math.ceil(sites / 5)) add('risk', `${sites} sites supported by ${admins ? plural(admins,'admin') : 'no admins'}. Ownership and training are at risk after go-live.`);
   if ((d.plans || []).includes('None documented')) add('risk', 'No documented plans. Scope includes building content, not just migrating it.');
   if (!d.sso || d.sso === 'Unknown') add('check', 'Identity provider not confirmed. SSO setup and the security review could slip.');
@@ -459,6 +491,7 @@ function flags(d){
   if (!d.adminOwner) add('check', 'No owner named for the platform after go-live.');
   if (d.offline === 'Yes') add('note', 'Field teams need to work without signal. Confirm mobile offline behavior early.');
   if (d.massNotify) add('note', 'A notification tool is already in place. Clarify whether to replace it or integrate with it.');
+  if (d.itsm && d.itsm !== 'None') add('note', `${d.itsm} is in use. Confirm whether incidents should sync, and who owns that integration.`);
   if (d.otherSystems) add('note', 'Additional integrations listed. Confirm API access and an owner for each one.');
   if (d.allStaff === 'Yes' && users) add('note', `Any employee can report, so expect reporters well beyond the ${users} named users.`);
   if (!d.goLive) add('note', 'No target go-live captured.');
@@ -489,7 +522,7 @@ function answersBySection(d){
   return out;
 }
 function exportPayload(){
-  return { source:'Discovery Capture', version:APP_VERSION, capturedAt:new Date().toISOString(),
+  return { source:'Hindsight', version:APP_VERSION, capturedAt:new Date().toISOString(),
     answers:answersBySection(data), ruleFlags:flags(data).map(f => `${LEVEL_LABEL[f.level]}: ${f.text}`),
     ...(data.debrief ? { engineerDebrief: data.debrief } : {}) };
 }
@@ -514,7 +547,7 @@ Subtitle line: project name, today's date, "Internal working document, stage 1 t
 7. Suggested rollout: table with columns Phase, Scope, Key dependencies. Two or three phases.
 8. Budgetary estimate: write exactly "Budgetary estimate to be provided from the approved pricing tool." Then list the pricing inputs found in the data.
 9. Open questions: grouped under Executive sponsor, IT and security, Emergency management.
-10. Next steps toward a proposal: table with columns Action, Owner, Timing. End with one line stating what stands between this document and a proposal.
+10. Next steps toward a proposal: table with columns Action, Owner, Timing. Base these on what the customer actually asked for in the data, not on generic sales steps. End with one line stating what stands between this document and a proposal.
 
 ═══════════════════════════════════════════
 PART 2 of 2. CUSTOMER FACING. Review before sending.
@@ -526,7 +559,7 @@ Title: [Customer name]: What We Heard. Keep this to about one page.
 2. What we heard: current state, challenges, goals.
 3. What we understand you need: a short bulleted list.
 4. Questions for you: the open questions rephrased as polite questions.
-5. Suggested next steps: two or three, with dates left blank.
+5. Suggested next steps: two or three, matching what the customer asked for, with dates left blank.
 
 Rules for Part 2: remove all risks, impact ratings, mitigations, and internal judgments. Remove anything about budget, procurement, or sponsorship. Remove the word "assumption" and turn each assumption into a question. No pricing of any kind. End with "Please tell us anything we've misunderstood." Then a footer: "Draft for account team review before sending."
 
@@ -664,6 +697,17 @@ ${JSON.stringify(currentAnswers())}
 Debrief transcript:
 ${data.debrief || ''}`;
 }
+function mapDebriefWithAI(){
+  stopRecording();
+  if (!(data.debrief || '').trim()) { toast('Record or type a debrief first'); return; }
+  saveNow();
+  runAI(async () => {
+    const text = await callAI(buildDebriefPrompt(), true);
+    const el = $('replyText'); if (el) el.value = text; else pendingRaw = text;
+    readReply(text);
+  });
+}
+let pendingRaw = '';
 function copyDebriefPrompt(){
   stopRecording();
   if (!(data.debrief || '').trim()) { toast('Record or type a debrief first'); return; }
@@ -686,8 +730,8 @@ function normalize(id, value){
   return t ? { id, label: f.label, value: t } : null;
 }
 const same = (a, b) => JSON.stringify(Array.isArray(a) ? [...a].sort() : String(a ?? '')) === JSON.stringify(Array.isArray(b) ? [...b].sort() : String(b ?? ''));
-function readReply(){
-  const raw = ($('replyText').value || '').replace(/```(json)?/g, '');
+function readReply(src){
+  const raw = String(src !== undefined ? src : (($('replyText') || {}).value || pendingRaw || '')).replace(/```(json)?/g, '');
   const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
   let obj = null;
   try { obj = JSON.parse(raw.slice(a, b + 1)); } catch(e){}
@@ -701,6 +745,8 @@ function readReply(){
     list.push({ ...r, current: data[r.id], quote: sg.quote ? String(sg.quote) : '', accept: true });
   });
   pending = { list, missing: Array.isArray(obj.missing) ? obj.missing.map(String) : [], ignored, matched };
+  pendingRaw = '';
+  if (busy) return;
   render();
   const el = $('sugTop'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -725,10 +771,16 @@ function renderDebrief(){
     ${SR ? `<button type="button" id="recBtn" class="btn rec-btn${recording ? ' on' : ''}" aria-pressed="${recording}" onclick="toggleRecord()"><span class="dot"></span><span class="rec-label">${recording ? 'Stop recording' : 'Start recording'}</span></button>` : ''}
     <textarea id="debriefText" aria-label="Debrief transcript" placeholder="For example: They have 14 sites across two regions. The COO is sponsoring this after last year's audit..." oninput="setDebrief(this.value)">${esc(data.debrief)}</textarea>
     <p class="hint">${SR ? 'Recording uses your browser\'s speech service. ' : ''}You can also tap the microphone on your keyboard, or type. <button type="button" class="link" onclick="insertSampleDebrief()">Insert a sample debrief</button></p>
-    <div class="stepno"><b>2</b>Send it to ${AI().name}</div>
-    <button type="button" class="btn signal wide" onclick="copyDebriefPrompt()">Copy debrief for ${AI().name}</button>
-    <p class="hint center">Paste it into ${AI().name}. It replies with suggested answers. ${openLink()}</p>
-    <div class="stepno" id="sugTop"><b>3</b>Paste ${AI().name}'s reply</div>
+    <div class="stepno"><b>2</b>Turn it into answers</div>
+    ${hasKey() ? `
+      <button type="button" class="btn signal wide" onclick="mapDebriefWithAI()" ${busy ? 'disabled' : ''}>${busy ? '<span class="spin"></span>Asking ' + AI().name : 'Map it with ' + AI().name}</button>
+      <p class="hint center">Runs in the app. No copying and pasting.</p>
+      ${aiError ? `<div class="warn">${esc(aiError)}</div><button type="button" class="btn wide" onclick="copyDebriefPrompt()">Copy it for ${AI().name} instead</button>` : ''}`
+    : `
+      <button type="button" class="btn signal wide" onclick="copyDebriefPrompt()">Copy debrief for ${AI().name}</button>
+      <p class="hint center">Paste it into ${AI().name}. It replies with suggested answers. ${openLink()}</p>
+      <p class="hint center"><button type="button" class="link" onclick="go('settings')">Add an API key</button> to run this in the app.</p>`}
+    <div class="stepno" id="sugTop"><b>3</b>${hasKey() ? 'Review the suggestions' : `Paste ${AI().name}'s reply`}</div>
     ${p ? `
       ${p.list.length ? `
         <p class="hint">Uncheck anything that's wrong. Applied answers are tagged so you can confirm them later.</p>
@@ -743,9 +795,99 @@ function renderDebrief(){
       ${p.missing.length ? `<h2 class="h2">Still missing</h2><ul class="missing">${p.missing.map(m => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
       <button type="button" class="btn text wide" onclick="discardSuggestions()">Discard suggestions</button>`
     : `
+      ${hasKey() ? `<p class="empty">${busy ? 'Waiting for ' + AI().name + '...' : 'Suggestions appear here once you run step 2.'}</p>` : ''}
       <textarea id="replyText" aria-label="${AI().name}'s reply" placeholder="Paste ${AI().name}'s full reply here"></textarea>
       <button type="button" class="btn wide" onclick="readReply()">Review suggestions</button>`}`;
 }
+
+// ---------------------------------------------------------------------------
+// Direct AI calls. The key is stored on this device and is sent only to the
+// provider you choose.
+// ---------------------------------------------------------------------------
+const PROVIDERS = {
+  claude: { name:'Claude', defaultModel:'claude-sonnet-4-5', keyHint:'Starts with sk-ant-', keyUrl:'https://console.anthropic.com/settings/keys' },
+  gemini: { name:'Gemini', defaultModel:'gemini-2.5-flash', keyHint:'From Google AI Studio', keyUrl:'https://aistudio.google.com/apikey' }
+};
+const CFGKEY = 'cemDiscovery.apicfg';
+function getCfg(){
+  const c = sget(CFGKEY) || {};
+  const id = PROVIDERS[c.provider] ? c.provider : (PROVIDERS[assistantId] ? assistantId : 'claude');
+  return { provider:id, key:c.key || '', model:c.model || PROVIDERS[id].defaultModel };
+}
+function setCfg(patch){
+  const c = { ...getCfg(), ...patch };
+  if (patch.provider && !patch.model) c.model = PROVIDERS[patch.provider].defaultModel;
+  sset(CFGKEY, c);
+  return c;
+}
+const hasKey = () => !!getCfg().key.trim();
+let busy = false, aiError = '', keyTested = false;
+
+async function callAI(prompt, wantJson){
+  const c = getCfg();
+  if (!c.key.trim()) throw new Error('No API key saved. Add one in Settings, or use copy and paste.');
+  let url, opts;
+  if (c.provider === 'claude') {
+    url = 'https://api.anthropic.com/v1/messages';
+    opts = { method:'POST', headers:{ 'content-type':'application/json', 'x-api-key':c.key.trim(),
+      'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:c.model, max_tokens:4000, temperature:0.2, messages:[{ role:'user', content:prompt }] }) };
+  } else {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(c.model)}:generateContent?key=${encodeURIComponent(c.key.trim())}`;
+    opts = { method:'POST', headers:{ 'content-type':'application/json' },
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }],
+        generationConfig:{ temperature:0.2, maxOutputTokens:4000, ...(wantJson ? { responseMimeType:'application/json' } : {}) } }) };
+  }
+  let res;
+  try { res = await fetch(url, opts); }
+  catch(e){ throw new Error('Could not reach the AI service. Check your connection, or use copy and paste.'); }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    let msg = '';
+    try { const j = JSON.parse(body); msg = (j.error && (j.error.message || j.error.status)) || ''; } catch(e){ msg = body.slice(0, 160); }
+    if (res.status === 401 || res.status === 403) throw new Error('The API key was rejected. Check it in Settings.');
+    if (res.status === 429) throw new Error('Rate limited by the provider. Wait a moment, then try again.');
+    if (res.status === 404) throw new Error(`Model "${c.model}" was not found. Change it in Settings.`);
+    throw new Error(msg || `The AI service returned an error (${res.status}).`);
+  }
+  const j = await res.json();
+  const text = c.provider === 'claude'
+    ? (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n')
+    : ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(pt => pt.text || '').join('\n');
+  if (!text.trim()) throw new Error('The AI returned an empty response. Try again.');
+  return text;
+}
+async function runAI(fn){
+  if (busy) return;
+  busy = true; aiError = ''; render();
+  try { await fn(); } catch(e){ aiError = e.message || String(e); }
+  busy = false; render();
+}
+function testKey(){ keyTested = false; runAI(async () => { await callAI('Reply with the single word: ready', false); keyTested = true; }); }
+
+function renderSettings(){
+  const c = getCfg(), p = PROVIDERS[c.provider];
+  return `
+    <h1 class="title">Settings</h1>
+    <p class="intro">Add an API key and the app calls the AI directly, with no copying and pasting. Leave it blank and the copy and paste steps still work.</p>
+    <div class="field"><span class="label">AI provider</span>
+      <div class="opts" role="radiogroup" aria-label="AI provider">${Object.entries(PROVIDERS).map(([id, pr]) =>
+        `<button type="button" role="radio" aria-checked="${id === c.provider}" class="opt${id === c.provider ? ' on' : ''}" onclick="chooseProvider('${id}')">${pr.name}</button>`).join('')}</div>
+    </div>
+    <div class="field"><span class="label" id="l_key">API key <span class="sub">${esc(p.keyHint)}</span></span>
+      <input type="password" id="f_key" aria-labelledby="l_key" autocomplete="off" spellcheck="false" value="${esc(c.key)}" placeholder="Paste your key" oninput="setCfg({key:this.value})">
+      <p class="hint">Stored on this device only. <a class="link" href="${p.keyUrl}" target="_blank" rel="noopener">Get a key</a></p>
+    </div>
+    <div class="field"><span class="label" id="l_model">Model</span>
+      <input type="text" id="f_model" aria-labelledby="l_model" autocomplete="off" spellcheck="false" value="${esc(c.model)}" oninput="setCfg({model:this.value})">
+      <p class="hint">Change this if the provider reports an unknown model.</p>
+    </div>
+    <button type="button" class="btn primary wide" onclick="testKey()">${busy ? '<span class="spin"></span>Testing' : 'Test the connection'}</button>
+    ${aiError ? `<div class="warn">${esc(aiError)}</div>` : ''}
+    ${keyTested ? `<div class="ok">Connected. ${esc(p.name)} replied using ${esc(c.model)}.</div>` : ''}
+    <div class="warn" style="margin-top:22px">Prototype note: a key held in a browser is fine for personal testing. Production should route calls through a backend with single sign-on and central key management.</div>`;
+}
+function chooseProvider(id){ setCfg({ provider:id }); assistantId = id; try { if (lsOK) localStorage.setItem(AKEY, id); } catch(e){} keyTested = false; aiError = ''; render(); }
 
 // ---------------------------------------------------------------------------
 // Deliverables: on-device draft summary (rules only) plus AI hand-off
@@ -763,11 +905,21 @@ function draftSections(d){
     ['Sites', num(d.sites) || 'Not captured'],
     ['Named users', totalUsers(d) || 'Not captured'],
     ['Capabilities', mods.length ? mods.join(', ') : 'Not captured'],
-    ['Integrations', [d.sso && `SSO: ${d.sso}`, d.hrSync === 'Yes' && 'HR directory sync', d.gis && d.gis !== 'None' && `GIS: ${d.gis}`, d.massNotify && 'Mass notification', d.otherSystems].filter(Boolean).join('; ') || 'Not captured'],
+    ['Integrations', [d.sso && `SSO: ${d.sso}`, d.hrSync === 'Yes' && 'HR directory sync', d.gis && d.gis !== 'None' && `GIS: ${d.gis}`, d.itsm && d.itsm !== 'None' && d.itsm, d.massNotify && 'Mass notification', d.otherSystems].filter(Boolean).join('; ') || 'Not captured'],
     ['Hosting region', d.residency || 'Not captured'],
     ['Training audiences', (d.training || []).join(', ') || 'Not captured']
   ];
+  const asks = (d.asks || []).filter(a => a !== 'Nothing specific yet');
+  const commitments = [
+    ['They asked for', asks.length ? asks.join(', ') : 'Nothing specific agreed'],
+    ['Decision timeline', d.decisionTiming || 'Not captured'],
+    ['How they buy', d.procurement || 'Not captured'],
+    ['Budget owner', d.budgetOwner || 'Not captured'],
+    ['Executive sponsor', d.sponsor || 'Not captured']
+  ];
   const open = [];
+  if (asks.length && !d.sponsor) open.push('Who is sponsoring this internally?');
+  if (asks.length && !d.budgetOwner) open.push('Who owns the budget for this?');
   if (!d.adminOwner) open.push('Who owns the platform after go-live?');
   if (!d.goLive) open.push('What date or event is driving the timeline?');
   if (!d.sso || d.sso === 'Unknown') open.push('Which identity provider is used for single sign-on?');
@@ -775,7 +927,7 @@ function draftSections(d){
   if (!num(d.sites)) open.push('How many sites and regions are in scope?');
   if (d.escalation && d.escalation !== 'Yes') open.push('Who can complete the escalation paths, and by when?');
   if (!(d.plans || []).length) open.push('What plans and checklists exist today?');
-  return { line1, line2, line3, line4, flags: fl, answers: a, pricingInputs, open };
+  return { line1, line2, line3, line4, flags: fl, answers: a, pricingInputs, open, commitments };
 }
 function draftText(d){
   const s = draftSections(d), L = [];
@@ -789,13 +941,33 @@ function draftText(d){
     L.push(sec);
     Object.entries(rows).forEach(([k, v]) => L.push(`- ${k}: ${Array.isArray(v) ? v.join(', ') : v}`));
   });
+  L.push('', 'WHAT THEY ASKED FOR');
+  s.commitments.forEach(r => L.push(`- ${r[0]}: ${r[1]}`));
+  if (d.askDetail) L.push(`- In their words: ${d.askDetail}`);
   L.push('', 'PRICING INPUTS');
   L.push('Budgetary estimate to be provided from the approved pricing tool.');
   s.pricingInputs.forEach(r => L.push(`- ${r[0]}: ${r[1]}`));
   if (s.open.length) { L.push('', 'OPEN QUESTIONS'); s.open.forEach(q => L.push(`- ${q}`)); }
   if (d.debrief) L.push('', 'ENGINEER DEBRIEF', d.debrief);
-  L.push('', `Built on device by Discovery Capture ${APP_VERSION}. No pricing is generated by AI.`);
+  L.push('', `Built on device by Hindsight ${APP_VERSION}. No pricing is generated by AI.`);
   return L.join('\n');
+}
+let docOut = '';
+function generateDocs(){
+  saveNow();
+  docOut = '';
+  runAI(async () => { docOut = await callAI(buildPrompt(), false); });
+}
+function copyPart(which){
+  const m = docOut.split(/[═]{5,}/);
+  let text = docOut;
+  if (m.length >= 5) text = which === 1 ? m[2].trim() : m[4].trim();
+  copyText(text, which === 1 ? 'Internal summary copied' : 'Customer recap copied');
+}
+function renderDocOut(){
+  return esc(docOut)
+    .replace(/^[═]{5,}\s*\n?/gm, '')
+    .replace(/^(PART [12] of 2\..*)$/gm, '<span class="bar">$1</span>');
 }
 function copyDraft(){ saveNow(); copyText(draftText(data), 'Draft summary copied'); }
 function emailDraft(){
@@ -811,10 +983,21 @@ function renderDeliverables(){
     <h1 class="title">Create deliverables</h1>
     <p class="intro">Stage one toward a proposal. The draft below is built on this device from your answers. ${AI().name} turns it into a full internal summary plus a customer recap.</p>
 
-    <div class="stepno"><b>1</b>Send the capture to ${AI().name}</div>
-    <button type="button" class="btn signal wide" onclick="copyPrompt()">Copy capture for ${AI().name}</button>
-    <p class="hint center">Paste it into your Discovery Document Builder Gem. ${openLink()}</p>
-    <p class="hint">You get two parts: an internal summary with risks and gaps, then a customer recap with the internal judgments removed. Export each separately before sending anything out.</p>
+    <div class="stepno"><b>1</b>Generate the documents</div>
+    <p class="hint">Two parts: an internal summary with risks and gaps, then a customer recap with the internal judgments removed.</p>
+    ${hasKey() ? `
+      <button type="button" class="btn signal wide" onclick="generateDocs()" ${busy ? 'disabled' : ''}>${busy ? '<span class="spin"></span>Writing with ' + AI().name : (docOut ? 'Generate again' : 'Generate with ' + AI().name)}</button>
+      ${aiError ? `<div class="warn">${esc(aiError)}</div><button type="button" class="btn wide" onclick="copyPrompt()">Copy the capture for ${AI().name} instead</button>` : ''}
+      ${docOut ? `<div class="out">${renderDocOut()}</div>
+        <div class="row2">
+          <button type="button" class="btn" onclick="copyPart(1)">Copy internal</button>
+          <button type="button" class="btn" onclick="copyPart(2)">Copy recap</button>
+        </div>
+        <p class="hint">Copy each part separately. The internal summary is never sent to the customer.</p>` : ''}`
+    : `
+      <button type="button" class="btn signal wide" onclick="copyPrompt()">Copy capture for ${AI().name}</button>
+      <p class="hint center">Paste it into your Discovery Document Builder Gem. ${openLink()}</p>
+      <p class="hint center"><button type="button" class="link" onclick="go('settings')">Add an API key</button> to generate in the app.</p>`}
 
     <div class="stepno"><b>2</b>Or use the on-device draft</div>
     <p class="hint">No AI involved. Useful with no signal, or when customer data can't leave the device.</p>
@@ -822,6 +1005,8 @@ function renderDeliverables(){
       <h4>${esc(d.customerName || 'Unnamed customer')}: Discovery Summary</h4>
       <p class="dim">${esc(d.projectName || 'Discovery')} | Internal working document, stage 1 toward proposal</p>
       <h4>Situation</h4><p>${esc(s.line1)} ${esc(s.line2)} ${esc(s.line3)} ${esc(s.line4)}</p>
+      <h4>What they asked for</h4>
+      <ul>${s.commitments.map(r => `<li>${esc(r[0])}: ${esc(r[1])}</li>`).join('')}</ul>
       <h4>Readiness flags</h4>
       ${s.flags.length ? `<ul>${s.flags.map(f => `<li><strong>${LEVEL_LABEL[f.level]}:</strong> ${esc(f.text)}</li>`).join('')}</ul>` : '<p class="dim">None raised.</p>'}
       <h4>Pricing inputs</h4>
@@ -879,7 +1064,7 @@ function renderHome(){
   const caps = getCaps().slice().reverse();
   return `
     <h1 class="title">Site discovery</h1>
-    <p class="intro">Capture a customer's requirements on site in about 15 minutes. At the end, readiness flags highlight gaps, and one tap prepares an AI review for ${AI().name}. Just out of a meeting? Start with a voice debrief.</p>
+    <p class="intro">Everything you wish you had asked. Capture a customer's requirements on site in about 15 minutes. At the end, readiness flags highlight gaps, and one tap prepares an AI review for ${AI().name}. Just out of a meeting? Start with a voice debrief.</p>
     <button class="btn primary wide" type="button" onclick="startNew(false)">Start new capture</button>
     <button class="btn wide icon" type="button" onclick="startNew(false, 'debrief')"><svg class="mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Start from a voice debrief</button>
     <button class="btn wide" type="button" onclick="startNew(true)">Load sample customer</button>
@@ -897,7 +1082,8 @@ function renderHome(){
     <div class="chips" role="radiogroup" aria-label="AI assistant">${Object.entries(ASSISTANTS).map(([id, a]) =>
       `<button type="button" role="radio" aria-checked="${id === assistantId}" class="chip${id === assistantId ? ' on' : ''}" onclick="setAssistant('${id}')">${a.name}</button>`).join('')}</div>
     <p class="hint">The prompts work the same in any of these. Use the one your company has approved.</p>
-    <p class="foot">Discovery Capture ${APP_VERSION}. Data stays on this device until you copy or email it.</p>`;
+    <button class="btn wide" type="button" onclick="go('settings')">Settings${hasKey() ? ', key saved' : ', add an API key'}</button>
+    <p class="foot">Hindsight ${APP_VERSION}. Data stays on this device until you copy or email it.</p>`;
 }
 
 function renderStep(i){
@@ -945,11 +1131,12 @@ function renderReview(){
 }
 
 function updateChrome(){
-  const isStep = typeof screen === 'number', isReview = screen === 'review', isDebrief = screen === 'debrief', isDeliver = screen === 'deliver';
+  const isStep = typeof screen === 'number', isReview = screen === 'review', isDebrief = screen === 'debrief', isDeliver = screen === 'deliver', isSettings = screen === 'settings';
   $('custName').textContent = screen === 'home' ? '' : (data.customerName || '');
   const steps = $('steps'), meta = $('stepMeta');
   steps.hidden = !(isStep || isReview);
-  meta.hidden = !(isStep || isReview || isDebrief || isDeliver);
+  meta.hidden = !(isStep || isReview || isDebrief || isDeliver || isSettings);
+  if (isSettings) meta.textContent = 'Settings';
   if (isDebrief) meta.textContent = 'Voice debrief';
   if (isDeliver) meta.textContent = 'Create deliverables';
   if (isStep || isReview) {
@@ -985,6 +1172,10 @@ function updateChrome(){
     next.textContent = 'Save and exit';
     back.onclick = () => go('review');
     next.onclick = () => { saveNow(); go('home'); toast('Capture saved'); };
+  } else if (isSettings) {
+    back.textContent = 'Back';
+    next.hidden = true;
+    back.onclick = () => go(settingsReturn);
   }
 }
 
@@ -992,16 +1183,21 @@ let lastScreen = 0;
 function pendingReturn(){ return lastScreen === 'home' ? 0 : lastScreen === 'debrief' ? 'review' : lastScreen; }
 function render(){
   const v = $('view');
-  v.innerHTML = screen === 'home' ? renderHome() : screen === 'review' ? renderReview() : screen === 'debrief' ? renderDebrief() : screen === 'deliver' ? renderDeliverables() : renderStep(screen);
+  v.innerHTML = screen === 'home' ? renderHome() : screen === 'review' ? renderReview() : screen === 'debrief' ? renderDebrief() : screen === 'deliver' ? renderDeliverables() : screen === 'settings' ? renderSettings() : renderStep(screen);
   updateChrome();
   hydratePhotos();
 }
+let settingsReturn = 'home';
 function go(s){
+  if (busy) return;
+  if (s === 'settings' && screen !== 'settings') settingsReturn = screen;
+  if (s !== 'settings') { aiError = ''; keyTested = false; }
   if (screen === 'debrief' && s !== 'debrief') stopRecording();
   if (s === 'debrief' && screen !== 'debrief') lastScreen = screen;
-  if (screen !== 'home') saveNow();
+  if (screen !== 'home' && screen !== 'settings') saveNow();
+  if (s !== 'deliver') docOut = '';
   screen = s;
-  if (s !== 'home') saveNow();
+  if (s !== 'home' && s !== 'settings') saveNow();
   render();
   window.scrollTo(0, 0);
 }
